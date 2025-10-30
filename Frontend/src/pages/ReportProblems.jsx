@@ -3,10 +3,12 @@ import axios from "axios";
 import { Plus, ThumbsUp, ThumbsDown, MessageCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
-const API_URL = "http://localhost:5000";
+const API_URL = "http://localhost:5000"; // ✅ Change if needed
 const LOCATION_API = "http://localhost:5000/registration/available-user-locations";
 
-/* Recursive Comment Component */
+/* ================================
+   🧩 Recursive Comment Component
+================================== */
 function Comment({ comment, handleLikeComment, handleAddReply }) {
   const [showReplyBox, setShowReplyBox] = useState(false);
   const [replyText, setReplyText] = useState("");
@@ -29,6 +31,7 @@ function Comment({ comment, handleLikeComment, handleAddReply }) {
           👍 {comment.likes?.length || 0}
         </button>
       </div>
+
       <p className="text-sm text-gray-700">{comment.text}</p>
 
       <button
@@ -62,7 +65,9 @@ function Comment({ comment, handleLikeComment, handleAddReply }) {
   );
 }
 
-/* Comment Input */
+/* ================================
+   🧩 Comment Box
+================================== */
 function CommentBox({ postId, handleAddComment }) {
   const [text, setText] = useState("");
   return (
@@ -86,12 +91,14 @@ function CommentBox({ postId, handleAddComment }) {
   );
 }
 
+/* ================================
+   🧩 Main ReportProblems Component
+================================== */
 export default function ReportProblems() {
   const [posts, setPosts] = useState([]);
   const [openCommentPost, setOpenCommentPost] = useState(null);
   const [filter, setFilter] = useState("all");
 
-  // 🔹 Location filters
   const [districts, setDistricts] = useState([]);
   const [panchayaths, setPanchayaths] = useState([]);
   const [wards, setWards] = useState([]);
@@ -99,10 +106,16 @@ export default function ReportProblems() {
   const [selectedPanchayath, setSelectedPanchayath] = useState("");
   const [selectedWard, setSelectedWard] = useState("");
 
+  // 🗑️ Delete popup states
+  const [showDeletePopup, setShowDeletePopup] = useState(false);
+  const [postToDelete, setPostToDelete] = useState(null);
+
   const userId = localStorage.getItem("userId");
   const navigate = useNavigate();
 
-  // 🔹 Fetch posts
+  /* ================================
+     📥 Fetch posts
+  ================================== */
   useEffect(() => {
     const fetchReports = async () => {
       try {
@@ -115,7 +128,9 @@ export default function ReportProblems() {
     fetchReports();
   }, []);
 
-  // 🔹 Fetch districts
+  /* ================================
+     🌍 Fetch location filters
+  ================================== */
   useEffect(() => {
     const fetchDistricts = async () => {
       try {
@@ -128,39 +143,31 @@ export default function ReportProblems() {
     fetchDistricts();
   }, []);
 
-  // 🔹 Fetch Panchayaths based on District
   useEffect(() => {
     if (!selectedDistrict) return setPanchayaths([]);
     const fetchPanchayaths = async () => {
-      try {
-        const { data } = await axios.get(LOCATION_API, {
-          params: { district: selectedDistrict },
-        });
-        setPanchayaths(data.panchayaths || []);
-      } catch (err) {
-        console.error("Error loading panchayaths:", err);
-      }
+      const { data } = await axios.get(LOCATION_API, {
+        params: { district: selectedDistrict },
+      });
+      setPanchayaths(data.panchayaths || []);
     };
     fetchPanchayaths();
   }, [selectedDistrict]);
 
-  // 🔹 Fetch Wards based on Panchayath
   useEffect(() => {
     if (!selectedDistrict || !selectedPanchayath) return setWards([]);
     const fetchWards = async () => {
-      try {
-        const { data } = await axios.get(LOCATION_API, {
-          params: { district: selectedDistrict, panchayath: selectedPanchayath },
-        });
-        setWards(data.wardNos || []);
-      } catch (err) {
-        console.error("Error loading wards:", err);
-      }
+      const { data } = await axios.get(LOCATION_API, {
+        params: { district: selectedDistrict, panchayath: selectedPanchayath },
+      });
+      setWards(data.wardNos || []);
     };
     fetchWards();
   }, [selectedPanchayath]);
 
-  // 🔹 Like, Dislike, Upvote, Comment handlers
+  /* ================================
+     💬 Like / Dislike / Upvote / Comments / Reply
+  ================================== */
   const handlePostLikeDislike = async (postId, type) => {
     try {
       const token = localStorage.getItem("token");
@@ -260,12 +267,36 @@ export default function ReportProblems() {
     }
   };
 
-  // 🔹 Filter logic (location + status)
+  /* ================================
+     🗑️ Delete report handler
+  ================================== */
+  const handleDeletePost = async () => {
+    if (!postToDelete) return;
+    try {
+      const token = localStorage.getItem("token");
+      await axios.delete(`${API_URL}/userPost/${postToDelete}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setPosts((prev) => prev.filter((p) => p._id !== postToDelete));
+    } catch (err) {
+      console.error("Error deleting post:", err);
+      alert("Failed to delete post.");
+    } finally {
+      setShowDeletePopup(false);
+      setPostToDelete(null);
+    }
+  };
+
+  /* ================================
+     🧮 Filter Logic
+  ================================== */
   const filteredPosts = posts
     .filter((p) => {
       const matchDistrict = !selectedDistrict || p.district === selectedDistrict;
-      const matchPanchayath = !selectedPanchayath || p.panchayath === selectedPanchayath;
-      const matchWard = !selectedWard || String(p.wardNo) === String(selectedWard);
+      const matchPanchayath =
+        !selectedPanchayath || p.panchayath === selectedPanchayath;
+      const matchWard =
+        !selectedWard || String(p.wardNo) === String(selectedWard);
       if (filter === "all" || filter === "latest")
         return matchDistrict && matchPanchayath && matchWard;
       if (filter === "pending")
@@ -282,6 +313,9 @@ export default function ReportProblems() {
       return 0;
     });
 
+  /* ================================
+     🖥️ JSX UI
+  ================================== */
   return (
     <div className="p-4 max-w-2xl mx-auto bg-gray-50 min-h-screen">
       {/* Location Filters */}
@@ -297,7 +331,9 @@ export default function ReportProblems() {
         >
           <option value="">Select District</option>
           {districts.map((dist, i) => (
-            <option key={i} value={dist}>{dist}</option>
+            <option key={i} value={dist}>
+              {dist}
+            </option>
           ))}
         </select>
 
@@ -312,7 +348,9 @@ export default function ReportProblems() {
         >
           <option value="">Select Panchayath</option>
           {panchayaths.map((p, i) => (
-            <option key={i} value={p}>{p}</option>
+            <option key={i} value={p}>
+              {p}
+            </option>
           ))}
         </select>
 
@@ -324,7 +362,9 @@ export default function ReportProblems() {
         >
           <option value="">Select Ward No</option>
           {wards.map((w, i) => (
-            <option key={i} value={w}>{w}</option>
+            <option key={i} value={w}>
+              {w}
+            </option>
           ))}
         </select>
       </div>
@@ -336,7 +376,9 @@ export default function ReportProblems() {
             key={f}
             onClick={() => setFilter(f)}
             className={`px-4 py-1 rounded-full text-sm font-medium ${
-              filter === f ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-700"
+              filter === f
+                ? "bg-blue-600 text-white"
+                : "bg-gray-200 text-gray-700"
             }`}
           >
             {f.charAt(0).toUpperCase() + f.slice(1)}
@@ -344,7 +386,7 @@ export default function ReportProblems() {
         ))}
       </div>
 
-      {/* Posts Feed */}
+      {/* Posts */}
       <div className="flex flex-col gap-10 mt-6">
         {filteredPosts.length > 0 ? (
           filteredPosts.map((post) => (
@@ -363,9 +405,32 @@ export default function ReportProblems() {
                     </p>
                   </div>
                 </div>
+
+                {/* Edit/Delete buttons */}
+                {post.createdBy?._id === userId && (
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => navigate(`/dashboard/report/edit/${post._id}`)}
+                      className="text-blue-600 text-sm hover:underline"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => {
+                        setPostToDelete(post._id);
+                        setShowDeletePopup(true);
+                      }}
+                      className="text-red-600 text-sm hover:underline"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                )}
               </div>
 
-              <h3 className="text-lg font-semibold text-gray-900 mb-1">{post.title}</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-1">
+                {post.title}
+              </h3>
 
               <div className="flex flex-wrap gap-2 mb-2 text-xs text-gray-600">
                 {post.category && (
@@ -385,26 +450,34 @@ export default function ReportProblems() {
 
               <p className="text-gray-700 mb-3">{post.description}</p>
 
-              {/* Media */}
               {post.media?.length > 0 && (
                 <div className="flex flex-wrap gap-2 mb-3">
                   {post.media.map((url, idx) =>
                     url.match(/\.(mp4|webm|ogg)$/i) ? (
-                      <video key={idx} src={url} controls className="w-full max-h-64 rounded-lg object-cover" />
+                      <video
+                        key={idx}
+                        src={url}
+                        controls
+                        className="w-full max-h-64 rounded-lg object-cover"
+                      />
                     ) : (
-                      <img key={idx} src={url} alt="media" className="w-full max-h-64 rounded-lg object-cover" />
+                      <img
+                        key={idx}
+                        src={url}
+                        alt="media"
+                        className="w-full max-h-64 rounded-lg object-cover"
+                      />
                     )
                   )}
                 </div>
               )}
 
-              {/* Like / Dislike / Comment / Upvote Bar */}
               <div className="flex items-center justify-between border-t pt-3 text-gray-600">
                 <div className="flex items-center gap-6">
                   <button
                     onClick={() => handlePostLikeDislike(post._id, "like")}
                     className={`flex items-center gap-1 ${
-                      post.likes?.some((id) => id.toString() === userId)
+                      post.likes?.includes(userId)
                         ? "text-blue-600"
                         : "text-gray-600 hover:text-blue-600"
                     }`}
@@ -415,7 +488,7 @@ export default function ReportProblems() {
                   <button
                     onClick={() => handlePostLikeDislike(post._id, "dislike")}
                     className={`flex items-center gap-1 ${
-                      post.dislikes?.some((id) => id.toString() === userId)
+                      post.dislikes?.includes(userId)
                         ? "text-red-600"
                         : "text-gray-600 hover:text-red-600"
                     }`}
@@ -425,7 +498,9 @@ export default function ReportProblems() {
 
                   <button
                     onClick={() =>
-                      setOpenCommentPost(openCommentPost === post._id ? null : post._id)
+                      setOpenCommentPost(
+                        openCommentPost === post._id ? null : post._id
+                      )
                     }
                     className="flex items-center gap-1 hover:text-blue-600"
                   >
@@ -436,7 +511,7 @@ export default function ReportProblems() {
                 <button
                   onClick={() => handleUpvote(post._id)}
                   className={`flex items-center justify-center gap-2 px-4 py-1.5 border border-blue-600 rounded-full text-blue-600 text-sm font-medium hover:bg-blue-600 hover:text-white transition ${
-                    post.upvotes?.some((id) => id.toString() === userId)
+                    post.upvotes?.includes(userId)
                       ? "bg-blue-600 text-white"
                       : ""
                   }`}
@@ -445,39 +520,62 @@ export default function ReportProblems() {
                 </button>
               </div>
 
-              {/* Comments */}
               {openCommentPost === post._id && (
-                <div className="mt-3 border-t pt-3">
-                  {post.comments?.map((comment) => (
-                    <Comment
-                      key={comment._id}
-                      comment={comment}
-                      handleLikeComment={handleLikeComment}
-                      handleAddReply={handleAddReply}
-                    />
-                  ))}
+                <div className="mt-4">
                   <CommentBox
                     postId={post._id}
                     handleAddComment={handleAddComment}
                   />
+                  <div className="mt-3">
+                    {post.comments?.map((comment) => (
+                      <Comment
+                        key={comment._id}
+                        comment={comment}
+                        handleLikeComment={handleLikeComment}
+                        handleAddReply={handleAddReply}
+                      />
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
           ))
         ) : (
-          <p className="text-gray-500 text-center mt-6">
-            No posts found for this selection.
-          </p>
+          <p className="text-gray-600 text-center">No reports found.</p>
         )}
       </div>
 
-      {/* Floating + Button */}
-      <button
-        className="fixed bottom-6 right-6 bg-blue-600 w-14 h-14 rounded-full flex items-center justify-center text-white shadow-xl hover:bg-blue-700"
-        onClick={() => navigate("/dashboard/report/add-report")}
-      >
-        <Plus size={26} />
-      </button>
+     {/* 🗑️ Delete Confirmation Popup */}
+{showDeletePopup && (
+  <div className="fixed inset-0 flex items-center justify-center z-50">
+    <div className="bg-white border border-gray-300 rounded-lg shadow-xl p-6 w-80 text-center">
+      <h3 className="text-lg font-semibold text-gray-800 mb-3">
+        Confirm Delete
+      </h3>
+      <p className="text-gray-600 mb-5">
+        Are you sure you want to delete this report? This action cannot be undone.
+      </p>
+      <div className="flex justify-center gap-4">
+        <button
+          onClick={handleDeletePost}
+          className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition"
+        >
+          Delete
+        </button>
+        <button
+          onClick={() => {
+            setShowDeletePopup(false);
+            setPostToDelete(null);
+          }}
+          className="bg-gray-100 hover:bg-gray-200 text-gray-800 px-4 py-2 rounded-lg transition"
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+
     </div>
   );
 }

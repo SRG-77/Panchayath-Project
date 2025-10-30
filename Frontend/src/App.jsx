@@ -21,6 +21,7 @@ import UserDonationPayment from "./pages/UserDonationPayment"
 import MemberProfile from "./pages/MemberDetails"
 import UserProfile from "./pages/UserProfile"
 import AddReport from "./pages/AddReportPage"
+import EditReport from "./pages/EditReport"
 
 import MemberProtectedRoute from "./pages/MemberProtectedRoute";
 
@@ -59,6 +60,8 @@ function App() {
           <Route path="memberprofile" element = {<MemberProfile/>}/>
           <Route path="userprofile" element = {<UserProfile/>}/>
           <Route path="report/add-report" element = {<AddReport/>}/>
+          <Route path="/dashboard/report/edit/:id" element={<EditReport />} />
+
           
          
         </Route>
