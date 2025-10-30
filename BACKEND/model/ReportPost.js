@@ -4,6 +4,9 @@ const ReportSchema = new mongoose.Schema(
   {
     title: { type: String },
     description: { type: String },
+    district: { type: String, required: true },
+    panchayath: { type: String, required: true },
+    wardNo: { type: Number, required: true },
     category: {
       type: String,
       enum: ["Education", "Roads", "Agriculture", "Waste", "Electricity", "Water"],

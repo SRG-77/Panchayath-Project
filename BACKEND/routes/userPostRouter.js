@@ -17,4 +17,5 @@ router.get("/user/:id", auth, PostController.getReportsByUser);
 router.patch('/:id/like', auth, PostController.likeReport);
 router.patch('/:id/dislike', auth, PostController.dislikeReport);
 router.patch("/:id/upvote", auth, PostController.upvoteReport);
+router.get('/locations', PostController.getAvailableReportLocations);
 module.exports = router;

@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
-import { Plus, ThumbsUp, ThumbsDown, MessageCircle, Image } from "lucide-react";
+import { Plus, ThumbsUp, ThumbsDown, MessageCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 const API_URL = "http://localhost:5000";
+const LOCATION_API = "http://localhost:5000/registration/available-user-locations";
 
 /* Recursive Comment Component */
 function Comment({ comment, handleLikeComment, handleAddReply }) {
@@ -57,27 +58,6 @@ function Comment({ comment, handleLikeComment, handleAddReply }) {
           </button>
         </div>
       )}
-
-      {comment.replies?.map((reply) => (
-        <div key={reply._id} className="ml-6 mt-2">
-          <div className="flex items-center justify-between mb-1">
-            <span className="font-semibold text-sm text-gray-800">
-              {reply.createdBy?.name || "Anonymous"}
-            </span>
-            <button
-              onClick={() => handleAddReply(comment._id, reply._id, "like")}
-              className={`text-xs flex items-center gap-1 ${
-                reply.likes?.some((id) => id.toString() === userId)
-                  ? "text-blue-600"
-                  : "text-gray-500 hover:text-blue-600"
-              }`}
-            >
-              👍 {reply.likes?.length || 0}
-            </button>
-          </div>
-          <p className="text-sm text-gray-700">{reply.text}</p>
-        </div>
-      ))}
     </div>
   );
 }
@@ -111,18 +91,18 @@ export default function ReportProblems() {
   const [openCommentPost, setOpenCommentPost] = useState(null);
   const [filter, setFilter] = useState("all");
 
-  const categories = [
-    "Road Damage",
-    "Waste Management",
-    "Street Light Issue",
-    "Water Supply",
-    "Public Safety",
-    "Other",
-  ];
+  // 🔹 Location filters
+  const [districts, setDistricts] = useState([]);
+  const [panchayaths, setPanchayaths] = useState([]);
+  const [wards, setWards] = useState([]);
+  const [selectedDistrict, setSelectedDistrict] = useState("");
+  const [selectedPanchayath, setSelectedPanchayath] = useState("");
+  const [selectedWard, setSelectedWard] = useState("");
 
   const userId = localStorage.getItem("userId");
   const navigate = useNavigate();
 
+  // 🔹 Fetch posts
   useEffect(() => {
     const fetchReports = async () => {
       try {
@@ -135,6 +115,52 @@ export default function ReportProblems() {
     fetchReports();
   }, []);
 
+  // 🔹 Fetch districts
+  useEffect(() => {
+    const fetchDistricts = async () => {
+      try {
+        const { data } = await axios.get(LOCATION_API);
+        setDistricts(data.districts || []);
+      } catch (err) {
+        console.error("Error loading districts:", err);
+      }
+    };
+    fetchDistricts();
+  }, []);
+
+  // 🔹 Fetch Panchayaths based on District
+  useEffect(() => {
+    if (!selectedDistrict) return setPanchayaths([]);
+    const fetchPanchayaths = async () => {
+      try {
+        const { data } = await axios.get(LOCATION_API, {
+          params: { district: selectedDistrict },
+        });
+        setPanchayaths(data.panchayaths || []);
+      } catch (err) {
+        console.error("Error loading panchayaths:", err);
+      }
+    };
+    fetchPanchayaths();
+  }, [selectedDistrict]);
+
+  // 🔹 Fetch Wards based on Panchayath
+  useEffect(() => {
+    if (!selectedDistrict || !selectedPanchayath) return setWards([]);
+    const fetchWards = async () => {
+      try {
+        const { data } = await axios.get(LOCATION_API, {
+          params: { district: selectedDistrict, panchayath: selectedPanchayath },
+        });
+        setWards(data.wardNos || []);
+      } catch (err) {
+        console.error("Error loading wards:", err);
+      }
+    };
+    fetchWards();
+  }, [selectedPanchayath]);
+
+  // 🔹 Like, Dislike, Upvote, Comment handlers
   const handlePostLikeDislike = async (postId, type) => {
     try {
       const token = localStorage.getItem("token");
@@ -145,7 +171,7 @@ export default function ReportProblems() {
       );
       const updatedPost = res.data.updatedPost;
       setPosts((prev) =>
-        prev.map((post) => (post._id === postId ? updatedPost : post))
+        prev.map((p) => (p._id === postId ? updatedPost : p))
       );
     } catch (err) {
       console.error(err);
@@ -162,7 +188,7 @@ export default function ReportProblems() {
       );
       const updatedPost = res.data.updatedPost;
       setPosts((prev) =>
-        prev.map((post) => (post._id === postId ? updatedPost : post))
+        prev.map((p) => (p._id === postId ? updatedPost : p))
       );
     } catch (err) {
       console.error(err);
@@ -179,10 +205,10 @@ export default function ReportProblems() {
       );
       const newComment = res.data.comment;
       setPosts((prev) =>
-        prev.map((post) =>
-          post._id === postId
-            ? { ...post, comments: [...post.comments, newComment] }
-            : post
+        prev.map((p) =>
+          p._id === postId
+            ? { ...p, comments: [...p.comments, newComment] }
+            : p
         )
       );
     } catch (err) {
@@ -200,9 +226,9 @@ export default function ReportProblems() {
       );
       const updatedComment = res.data.updatedComment;
       setPosts((prev) =>
-        prev.map((post) => ({
-          ...post,
-          comments: post.comments.map((c) =>
+        prev.map((p) => ({
+          ...p,
+          comments: p.comments.map((c) =>
             c._id === commentId ? updatedComment : c
           ),
         }))
@@ -222,9 +248,9 @@ export default function ReportProblems() {
       );
       const updatedComment = res.data.updatedComment;
       setPosts((prev) =>
-        prev.map((post) => ({
-          ...post,
-          comments: post.comments.map((c) =>
+        prev.map((p) => ({
+          ...p,
+          comments: p.comments.map((c) =>
             c._id === commentId ? updatedComment : c
           ),
         }))
@@ -234,22 +260,75 @@ export default function ReportProblems() {
     }
   };
 
+  // 🔹 Filter logic (location + status)
   const filteredPosts = posts
-    .filter((post) => {
-      if (filter === "all" || filter === "latest") return true;
-      if (filter === "pending") return post.status === "Pending";
-      if (filter === "solved") return post.status === "Solved";
+    .filter((p) => {
+      const matchDistrict = !selectedDistrict || p.district === selectedDistrict;
+      const matchPanchayath = !selectedPanchayath || p.panchayath === selectedPanchayath;
+      const matchWard = !selectedWard || String(p.wardNo) === String(selectedWard);
+      if (filter === "all" || filter === "latest")
+        return matchDistrict && matchPanchayath && matchWard;
+      if (filter === "pending")
+        return matchDistrict && matchPanchayath && matchWard && p.status === "Pending";
+      if (filter === "solved")
+        return matchDistrict && matchPanchayath && matchWard && p.status === "Solved";
       return true;
     })
     .sort((a, b) => {
       if (filter === "latest")
         return new Date(b.createdAt) - new Date(a.createdAt);
-      if (filter === "all") return (b.upvotes?.length || 0) - (a.upvotes?.length || 0);
+      if (filter === "all")
+        return (b.upvotes?.length || 0) - (a.upvotes?.length || 0);
       return 0;
     });
 
   return (
     <div className="p-4 max-w-2xl mx-auto bg-gray-50 min-h-screen">
+      {/* Location Filters */}
+      <div className="flex flex-col gap-3 mb-4">
+        <select
+          value={selectedDistrict}
+          onChange={(e) => {
+            setSelectedDistrict(e.target.value);
+            setSelectedPanchayath("");
+            setSelectedWard("");
+          }}
+          className="border border-gray-300 rounded-lg p-2"
+        >
+          <option value="">Select District</option>
+          {districts.map((dist, i) => (
+            <option key={i} value={dist}>{dist}</option>
+          ))}
+        </select>
+
+        <select
+          value={selectedPanchayath}
+          onChange={(e) => {
+            setSelectedPanchayath(e.target.value);
+            setSelectedWard("");
+          }}
+          disabled={!selectedDistrict}
+          className="border border-gray-300 rounded-lg p-2 disabled:bg-gray-100"
+        >
+          <option value="">Select Panchayath</option>
+          {panchayaths.map((p, i) => (
+            <option key={i} value={p}>{p}</option>
+          ))}
+        </select>
+
+        <select
+          value={selectedWard}
+          onChange={(e) => setSelectedWard(e.target.value)}
+          disabled={!selectedPanchayath}
+          className="border border-gray-300 rounded-lg p-2 disabled:bg-gray-100"
+        >
+          <option value="">Select Ward No</option>
+          {wards.map((w, i) => (
+            <option key={i} value={w}>{w}</option>
+          ))}
+        </select>
+      </div>
+
       {/* Filter Buttons */}
       <div className="flex gap-2 mb-4">
         {["all", "latest", "pending", "solved"].map((f) => (
@@ -267,122 +346,132 @@ export default function ReportProblems() {
 
       {/* Posts Feed */}
       <div className="flex flex-col gap-10 mt-6">
-        {filteredPosts.map((post) => (
-          <div key={post._id} className="bg-white rounded-lg shadow p-4">
-            {/* Header */}
-            <div className="flex justify-between items-center mb-2">
-              <div className="flex items-center gap-2">
-                <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 font-semibold">
-                  {post.createdBy?.name?.[0] || "U"}
-                </div>
-                <div>
-                  <p className="font-semibold text-gray-800">{post.createdBy?.name || "User"}</p>
-                  <p className="text-xs text-gray-400">{new Date(post.createdAt).toLocaleString()}</p>
+        {filteredPosts.length > 0 ? (
+          filteredPosts.map((post) => (
+            <div key={post._id} className="bg-white rounded-lg shadow p-4">
+              <div className="flex justify-between items-center mb-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 font-semibold">
+                    {post.createdBy?.name?.[0] || "U"}
+                  </div>
+                  <div>
+                    <p className="font-semibold text-gray-800">
+                      {post.createdBy?.name || "User"}
+                    </p>
+                    <p className="text-xs text-gray-400">
+                      {new Date(post.createdAt).toLocaleString()}
+                    </p>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {/* Title */}
-            <h3 className="text-lg font-semibold text-gray-900 mb-1">{post.title}</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-1">{post.title}</h3>
 
-            {/* Category & Location */}
-            <div className="flex flex-wrap gap-2 mb-2 text-xs text-gray-600">
-              {post.category && (
-                <span className="bg-blue-50 text-blue-700 px-2 py-1 rounded-full">🏷️ {post.category}</span>
-              )}
-              {post.location && (
-                <span className="bg-green-50 text-green-700 px-2 py-1 rounded-full">📍 {post.location}</span>
-              )}
-              {post.status && (
-                <span className="bg-yellow-50 text-yellow-800 px-2 py-1 rounded-full">
-                  {post.status.charAt(0).toUpperCase() + post.status.slice(1)}
+              <div className="flex flex-wrap gap-2 mb-2 text-xs text-gray-600">
+                {post.category && (
+                  <span className="bg-blue-50 text-blue-700 px-2 py-1 rounded-full">
+                    🏷️ {post.category}
+                  </span>
+                )}
+                <span className="bg-green-50 text-green-700 px-2 py-1 rounded-full">
+                  📍 {post.district} / {post.panchayath} / Ward {post.wardNo}
                 </span>
-              )}
-            </div>
-
-            {/* Description */}
-            <p className="text-gray-700 mb-3">{post.description}</p>
-
-            {/* Media */}
-            {post.media?.length > 0 && (
-              <div className="flex flex-wrap gap-2 mb-3">
-                {post.media.map((url, idx) =>
-                  url.match(/\.(mp4|webm|ogg)$/i) ? (
-                    <video key={idx} src={url} controls className="w-full max-h-64 rounded-lg object-cover" />
-                  ) : (
-                    <img key={idx} src={url} alt="media" className="w-full max-h-64 rounded-lg object-cover" />
-                  )
+                {post.status && (
+                  <span className="bg-yellow-50 text-yellow-800 px-2 py-1 rounded-full">
+                    {post.status.charAt(0).toUpperCase() + post.status.slice(1)}
+                  </span>
                 )}
               </div>
-            )}
 
-            {/* Like / Dislike / Comment / Upvote Bar */}
-            <div className="flex items-center justify-between border-t pt-3 text-gray-600">
-              <div className="flex items-center gap-6">
+              <p className="text-gray-700 mb-3">{post.description}</p>
+
+              {/* Media */}
+              {post.media?.length > 0 && (
+                <div className="flex flex-wrap gap-2 mb-3">
+                  {post.media.map((url, idx) =>
+                    url.match(/\.(mp4|webm|ogg)$/i) ? (
+                      <video key={idx} src={url} controls className="w-full max-h-64 rounded-lg object-cover" />
+                    ) : (
+                      <img key={idx} src={url} alt="media" className="w-full max-h-64 rounded-lg object-cover" />
+                    )
+                  )}
+                </div>
+              )}
+
+              {/* Like / Dislike / Comment / Upvote Bar */}
+              <div className="flex items-center justify-between border-t pt-3 text-gray-600">
+                <div className="flex items-center gap-6">
+                  <button
+                    onClick={() => handlePostLikeDislike(post._id, "like")}
+                    className={`flex items-center gap-1 ${
+                      post.likes?.some((id) => id.toString() === userId)
+                        ? "text-blue-600"
+                        : "text-gray-600 hover:text-blue-600"
+                    }`}
+                  >
+                    <ThumbsUp size={18} /> {post.likes?.length || 0}
+                  </button>
+
+                  <button
+                    onClick={() => handlePostLikeDislike(post._id, "dislike")}
+                    className={`flex items-center gap-1 ${
+                      post.dislikes?.some((id) => id.toString() === userId)
+                        ? "text-red-600"
+                        : "text-gray-600 hover:text-red-600"
+                    }`}
+                  >
+                    <ThumbsDown size={18} /> {post.dislikes?.length || 0}
+                  </button>
+
+                  <button
+                    onClick={() =>
+                      setOpenCommentPost(openCommentPost === post._id ? null : post._id)
+                    }
+                    className="flex items-center gap-1 hover:text-blue-600"
+                  >
+                    <MessageCircle size={18} /> {post.comments?.length || 0}
+                  </button>
+                </div>
+
                 <button
-                  onClick={() => handlePostLikeDislike(post._id, "like")}
-                  className={`flex items-center gap-1 ${
-                    post.likes?.some((id) => id.toString() === userId)
-                      ? "text-blue-600"
-                      : "text-gray-600 hover:text-blue-600"
+                  onClick={() => handleUpvote(post._id)}
+                  className={`flex items-center justify-center gap-2 px-4 py-1.5 border border-blue-600 rounded-full text-blue-600 text-sm font-medium hover:bg-blue-600 hover:text-white transition ${
+                    post.upvotes?.some((id) => id.toString() === userId)
+                      ? "bg-blue-600 text-white"
+                      : ""
                   }`}
                 >
-                  <ThumbsUp size={18} /> {post.likes?.length || 0}
-                </button>
-
-                <button
-                  onClick={() => handlePostLikeDislike(post._id, "dislike")}
-                  className={`flex items-center gap-1 ${
-                    post.dislikes?.some((id) => id.toString() === userId)
-                      ? "text-red-600"
-                      : "text-gray-600 hover:text-red-600"
-                  }`}
-                >
-                  <ThumbsDown size={18} /> {post.dislikes?.length || 0}
-                </button>
-
-                <button
-                  onClick={() =>
-                    setOpenCommentPost(openCommentPost === post._id ? null : post._id)
-                  }
-                  className="flex items-center gap-1 hover:text-blue-600"
-                >
-                  <MessageCircle size={18} /> {post.comments?.length || 0}
+                  UPVOTE {post.upvotes?.length || 0}
                 </button>
               </div>
 
-              {/* UPVOTE Button */}
-              <button
-                onClick={() => handleUpvote(post._id)}
-                className={`flex items-center justify-center gap-2 px-4 py-1.5 border border-blue-600 rounded-full text-blue-600 text-sm font-medium hover:bg-blue-600 hover:text-white transition ${
-                  post.upvotes?.some((id) => id.toString() === userId)
-                    ? "bg-blue-600 text-white"
-                    : ""
-                }`}
-              >
-                UPVOTE {post.upvotes?.length || 0}
-              </button>
-            </div>
-
-            {/* Comments Section */}
-            {openCommentPost === post._id && (
-              <div className="mt-3 border-t pt-3">
-                {post.comments?.map((comment) => (
-                  <Comment
-                    key={comment._id}
-                    comment={comment}
-                    handleLikeComment={handleLikeComment}
-                    handleAddReply={handleAddReply}
+              {/* Comments */}
+              {openCommentPost === post._id && (
+                <div className="mt-3 border-t pt-3">
+                  {post.comments?.map((comment) => (
+                    <Comment
+                      key={comment._id}
+                      comment={comment}
+                      handleLikeComment={handleLikeComment}
+                      handleAddReply={handleAddReply}
+                    />
+                  ))}
+                  <CommentBox
+                    postId={post._id}
+                    handleAddComment={handleAddComment}
                   />
-                ))}
-                <CommentBox postId={post._id} handleAddComment={handleAddComment} />
-              </div>
-            )}
-          </div>
-        ))}
+                </div>
+              )}
+            </div>
+          ))
+        ) : (
+          <p className="text-gray-500 text-center mt-6">
+            No posts found for this selection.
+          </p>
+        )}
       </div>
 
-      {/* Floating + Button to navigate to AddReportPost page */}
+      {/* Floating + Button */}
       <button
         className="fixed bottom-6 right-6 bg-blue-600 w-14 h-14 rounded-full flex items-center justify-center text-white shadow-xl hover:bg-blue-700"
         onClick={() => navigate("/dashboard/report/add-report")}

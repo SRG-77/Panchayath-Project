@@ -1,6 +1,7 @@
 const Reports = require("../model/ReportPost");
 const ReportComments = require("../model/ReportComment");
 const asyncHandler = require("express-async-handler");
+const Member = require("../model/memberReg")
 
 // =============================
 // @desc    Create a new report
@@ -8,8 +9,10 @@ const asyncHandler = require("express-async-handler");
 // @access  Private
 // =============================
 exports.createReport = asyncHandler(async (req, res) => {
-  const { title, description, category, location } = req.body;
-  if (!title || !description || !category || !location) {
+  const { title, description, category, district, panchayath, wardNo } = req.body;
+
+  // Validation
+  if (!title || !description || !category || !district || !panchayath || !wardNo) {
     return res.status(400).json({ message: "All fields are required" });
   }
 
@@ -20,11 +23,14 @@ exports.createReport = asyncHandler(async (req, res) => {
     mediaUrls = req.files.map((file) => file.path);
   }
 
+  // Save report with location info
   const report = await Reports.create({
     title,
     description,
     category,
-    location,
+    district,
+    panchayath,
+    wardNo: Number(wardNo),
     createdBy,
     media: mediaUrls,
   });
@@ -255,4 +261,28 @@ exports.upvoteReport = asyncHandler(async (req, res) => {
     });
 
   res.status(200).json({ message: "Upvote updated", updatedPost });
+});
+
+exports.getAvailableReportLocations = asyncHandler(async (req, res) => {
+  const { district, panchayath } = req.query;
+
+  if (!district && !panchayath) {
+    // Step 1: Return all distinct districts
+    const districts = await Member.distinct("district");
+    return res.json({ districts });
+  }
+
+  if (district && !panchayath) {
+    // Step 2: Return all distinct panchayaths under that district
+    const panchayaths = await Member.find({ district }).distinct("panchayath");
+    return res.json({ panchayaths });
+  }
+
+  if (district && panchayath) {
+    // Step 3: Return all distinct ward numbers for district + panchayath
+    const wardNos = await Member.find({ district, panchayath }).distinct("wardNo");
+    return res.json({ wardNos });
+  }
+
+  res.status(400).json({ message: "Invalid query" });
 });
