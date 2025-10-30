@@ -8,6 +8,8 @@ router.post('/login', userController.loginDetails)
 
 router.get('/', userController.getDetails)
 
+router.get('/available-user-locations', userController.getAvailableUserLocations)
+
 router.get('/:id', userController.getUserById);
 
 module.exports = router

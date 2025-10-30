@@ -18,19 +18,20 @@ const Register = () => {
   const [panchayaths, setPanchayaths] = useState([]);
   const [wards, setWards] = useState([]);
 
-  // Fetch districts on mount
+  // Fetch all member-registered districts on mount
   useEffect(() => {
     (async () => {
       try {
-        const { data } = await axios.get(`${API_BASE}/locations/districts`);
-        setDistricts(data || []);
+        const { data } = await axios.get(`${API_BASE}/registration/available-user-locations`);
+        setDistricts(data.districts || []);
       } catch (e) {
         console.error("Failed to load districts", e);
+        setDistricts([]);
       }
     })();
   }, []);
 
-  // Fetch panchayaths when district changes
+  // Fetch available panchayaths (for selected district)
   useEffect(() => {
     const dist = (selectedDistrict || "").trim();
     if (!dist) {
@@ -39,17 +40,17 @@ const Register = () => {
     }
     (async () => {
       try {
-        const { data } = await axios.get(`${API_BASE}/locations/panchayaths`, {
+        const { data } = await axios.get(`${API_BASE}/registration/available-user-locations`, {
           params: { district: dist },
         });
-        setPanchayaths(data || []);
+        setPanchayaths(data.panchayaths || []);
       } catch (e) {
-        console.error("Failed to load panchayaths", e);
+        setPanchayaths([]);
       }
     })();
   }, [selectedDistrict]);
 
-  // Fetch wards when panchayath changes
+  // Fetch available wardNos (for selected district+panchayath)
   useEffect(() => {
     const dist = (selectedDistrict || "").trim();
     const pan = (selectedPanchayath || "").trim();
@@ -59,12 +60,12 @@ const Register = () => {
     }
     (async () => {
       try {
-        const { data } = await axios.get(`${API_BASE}/locations/wards`, {
+        const { data } = await axios.get(`${API_BASE}/registration/available-user-locations`, {
           params: { district: dist, panchayath: pan },
         });
-        setWards(data || []);
+        setWards(data.wardNos || []);
       } catch (e) {
-        console.error("Failed to load wards", e);
+        setWards([]);
       }
     })();
   }, [selectedDistrict, selectedPanchayath]);

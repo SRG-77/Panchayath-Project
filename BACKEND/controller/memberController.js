@@ -9,10 +9,10 @@ const jwt = require('jsonwebtoken');
 // @access  Public
 // =============================
 exports.registerMember = asyncHandler(async (req, res) => {
-  const { name, email, password, confirmPassword, phone, wardNo, startYear, endYear } = req.body;
+  const { name, email, password, confirmPassword, phone,panchayath,district, wardNo, startYear, endYear } = req.body;
 
   // Validate input
-  if (!name || !email || !password || !confirmPassword || !phone || !wardNo || !startYear || !endYear) {
+  if (!name || !email || !password || !confirmPassword || !phone || !wardNo || !startYear || !endYear || !panchayath || !district) {
     return res.status(400).json({ message: 'All fields are required' });
   }
 
@@ -37,6 +37,8 @@ exports.registerMember = asyncHandler(async (req, res) => {
     email,
     password: hashedPassword,
     phone,
+    panchayath,
+    district,
     wardNo,
     startYear,
     endYear,
@@ -52,6 +54,8 @@ exports.registerMember = asyncHandler(async (req, res) => {
       name: member.name,
       email: member.email,
       phone: member.phone,
+      panchayath:member.panchayath,
+      district:member.district,
       wardNo: member.wardNo,
       startYear: member.startYear,
       endYear: member.endYear,
@@ -91,6 +95,8 @@ exports.loginMember = asyncHandler(async (req, res) => {
       name: member.name,
       email: member.email,
       phone: member.phone,
+      panchayath:member.panchayath,
+      district:member.district,
       wardNo: member.wardNo,
       startYear: member.startYear,
       endYear: member.endYear,

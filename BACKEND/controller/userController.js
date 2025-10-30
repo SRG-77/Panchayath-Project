@@ -5,36 +5,32 @@ const asyncHandler = require("express-async-handler");
 const District = require('../model/District');
 const Panchayath = require('../model/Panchayath');
 const Ward = require('../model/Ward');
+const Member = require('../model/memberReg');
 
 // ✅ Register a new user
 exports.createDetails = asyncHandler(async (req, res) => {
   const { name, email, password, confirmPassword, district, panchayath, wardNo } = req.body;
 
+  // Check for required fields
   if (!name || !email || !password || !confirmPassword || !district || !panchayath || !wardNo) {
     return res.status(400).json({ message: "All fields are required" });
   }
 
+  // Confirm passwords match
   if (password !== confirmPassword) {
     return res.status(400).json({ message: "Passwords do not match" });
   }
 
+  // Check if email already exists
   const userExists = await User.findOne({ email });
   if (userExists) {
     return res.status(400).json({ message: "Email already registered" });
   }
 
-  // Validate selected location against DB
-  const dist = await District.findOne({ name: district });
-  if (!dist) return res.status(400).json({ message: 'Invalid district' });
-
-  const pan = await Panchayath.findOne({ name: panchayath, district: dist._id });
-  if (!pan) return res.status(400).json({ message: 'Invalid panchayath for the selected district' });
-
-  const ward = await Ward.findOne({ number: String(wardNo), panchayath: pan._id });
-  if (!ward) return res.status(400).json({ message: 'Invalid ward for the selected panchayath' });
-
+  // Hash password
   const hashedPassword = await bcrypt.hash(password, 10);
 
+  // Create new user directly (no location validation)
   const newUser = await User.create({
     name,
     email,
@@ -44,6 +40,7 @@ exports.createDetails = asyncHandler(async (req, res) => {
     wardNo: Number(wardNo),
   });
 
+  // Generate token
   const token = jwt.sign(
     { id: newUser._id, name: newUser.name, email: newUser.email },
     process.env.JWT_KEY,
@@ -52,6 +49,7 @@ exports.createDetails = asyncHandler(async (req, res) => {
 
   res.status(201).json({ token, userId: newUser._id });
 });
+
 
 // ✅ Get all users (without passwords)
 exports.getDetails = asyncHandler(async (req, res) => {
@@ -94,4 +92,25 @@ exports.loginDetails = asyncHandler(async (req, res) => {
   );
 
   res.status(200).json({ token, userId: user._id });
+});
+
+// Get options for user location fields based on memberReg data
+exports.getAvailableUserLocations = asyncHandler(async (req, res) => {
+  const { district, panchayath } = req.query;
+  if (!district && !panchayath) {
+    // Return all distinct districts
+    const districts = await Member.distinct('district');
+    return res.json({ districts });
+  }
+  if (district && !panchayath) {
+    // Return distinct panchayaths for given district
+    const panchayaths = await Member.find({ district }).distinct('panchayath');
+    return res.json({ panchayaths });
+  }
+  if (district && panchayath) {
+    // Return distinct wardNos for district+panchayath
+    const wardNos = await Member.find({ district, panchayath }).distinct('wardNo');
+    return res.json({ wardNos });
+  }
+  res.status(400).json({ message: 'Invalid query' });
 });

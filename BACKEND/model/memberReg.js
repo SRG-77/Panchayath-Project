@@ -5,6 +5,8 @@ const memberSchema = new mongoose.Schema({
     email:{type: String, required:true, unique: true},
     password:{type: String, required: true},
     phone: {type: Number, required: true},
+    panchayath:{type:String,required: true},
+    district:{type:String,required:true},
     wardNo: {type: Number, required: true},
     startYear:{type: Number, required: true},
     endYear:{type: Number, required: true},
