@@ -2,6 +2,7 @@ import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { Home, Megaphone, DollarSign, Users, Cpu, User, Settings, LogOut } from "lucide-react";
 import { useEffect } from "react";
 
+
 export default function DashboardLayout({ tokenKey = "token" }) {
   const location = useLocation();
   const navigate = useNavigate();
